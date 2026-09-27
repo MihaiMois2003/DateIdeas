@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function coupleMembers(coupleId) {
+      return get(/databases/$(database)/documents/couples/$(coupleId)).data.members;
+    }
+    function ideaMembers(ideaId) {
+      return get(/databases/$(database)/documents/ideas/$(ideaId)).data.members;
+    }
+
+    // Profiluri: vizibile pentru utilizatorii logați (ca să vă puteți căuta), editabile doar de proprietar.
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && me() == userId;
+    }
+
+    // Username-uri unice: se pot doar rezerva, nu și schimba sau șterge.
+    match /usernames/{name} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == me();
+    }
+
+    // Cereri de partener.
+    match /partnerRequests/{requestId} {
+      allow read: if signedIn() && (resource.data.fromUserId == me() || resource.data.toUserId == me());
+      allow create: if signedIn()
+        && request.resource.data.fromUserId == me()
+        && request.resource.data.toUserId != me()
+        && request.resource.data.status == 'pending';
+      allow update: if signedIn() && resource.data.toUserId == me();
+      allow delete: if signedIn() && resource.data.fromUserId == me();
+    }
+
+    // Cupluri: se creează doar acceptând o cerere reală adresată ție. Permanente.
+    match /couples/{coupleId} {
+      allow read: if signedIn() && me() in resource.data.members;
+      allow create: if signedIn()
+        && request.resource.data.members.size() == 2
+        && me() in request.resource.data.members
+        && get(/databases/$(database)/documents/partnerRequests/$(request.resource.data.requestId)).data.toUserId == me()
+        && get(/databases/$(database)/documents/partnerRequests/$(request.resource.data.requestId)).data.status == 'pending'
+        && get(/databases/$(database)/documents/partnerRequests/$(request.resource.data.requestId)).data.fromUserId in request.resource.data.members;
+      allow update: if signedIn()
+        && me() in resource.data.members
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['anniversary']);
+      allow delete: if false;
+    }
+
+    // Ideile cuplului.
+    match /ideas/{ideaId} {
+      allow read, update, delete: if signedIn() && me() in resource.data.members;
+      allow create: if signedIn()
+        && me() in request.resource.data.members
+        && request.resource.data.authorId == me()
+        && request.resource.data.members == coupleMembers(request.resource.data.coupleId);
+
+      // Amintirile: le vedeți amândoi, le scrie și le editează doar autorul.
+      match /entries/{entryId} {
+        allow read: if signedIn() && me() in ideaMembers(ideaId);
+        allow create: if signedIn() && me() in ideaMembers(ideaId) && request.resource.data.authorId == me();
+        allow update: if signedIn() && resource.data.authorId == me();
+        allow delete: if signedIn() && me() in ideaMembers(ideaId);
+      }
+    }
+
+    // Chat-ul cuplului.
+    match /messages/{coupleId}/msgs/{msgId} {
+      allow read: if signedIn() && me() in coupleMembers(coupleId);
+      allow create: if signedIn() && me() in coupleMembers(coupleId) && request.resource.data.senderId == me();
+    }
+  }
+}

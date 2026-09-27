@@ -1,0 +1,16 @@
+{
+  "name": "DateIdeas",
+  "short_name": "DateIdeas",
+  "description": "Ideile voastre de ieșit în doi și amintirile de după.",
+  "lang": "ro",
+  "start_url": "./#/ideas",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FBEDEE",
+  "theme_color": "#FBEDEE",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
