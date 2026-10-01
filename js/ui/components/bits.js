@@ -27,7 +27,7 @@ export function coupleMark(me, partner, { size = 'lg' } = {}) {
 
 /**
  * Selector de poze cu previzualizare. Pe iPhone deschide galeria sau camera.
- * Expune `files` (lista curentă) și `el` (elementul DOM).
+ * Expune `files` (lista curentă) și `el` (elementul DOM); `onChange` primește lista nouă.
  */
 export class PhotoPicker {
   files = [];
@@ -36,9 +36,11 @@ export class PhotoPicker {
   #max;
   #grid;
   #input;
+  #onChange;
 
-  constructor({ multiple = false, max = 1, label = 'Adaugă o poză' } = {}) {
+  constructor({ multiple = false, max = 1, label = 'Adaugă o poză', onChange = () => {} } = {}) {
     this.#multiple = multiple;
+    this.#onChange = onChange;
     this.#max = max;
     this.#input = h('input', {
       type: 'file',
@@ -61,10 +63,19 @@ export class PhotoPicker {
     this.files = this.#multiple ? [...this.files, ...images].slice(0, this.#max) : images.slice(0, 1);
     this.#input.value = '';
     this.#render();
+    this.#onChange(this.files);
   }
 
   #remove(index) {
     this.files.splice(index, 1);
+    this.#render();
+    this.#onChange(this.files);
+  }
+
+  /** Golește selecția fără să anunțe (folosit când altă sursă de poză o înlocuiește). */
+  clear() {
+    if (!this.files.length) return;
+    this.files = [];
     this.#render();
   }
 
@@ -87,62 +98,6 @@ export class PhotoPicker {
 
   dispose() {
     this.#urls.forEach((url) => URL.revokeObjectURL(url));
-  }
-}
-
-/**
- * Câmp pentru o poză luată de pe internet (link, ex. din Google Images).
- * Expune `value` (linkul curent, validat) și `el` (elementul DOM).
- */
-export class ImageUrlField {
-  #img;
-  #input;
-  #hint;
-
-  get value() {
-    return this.#img.hidden ? '' : this.#input.value.trim();
-  }
-
-  constructor({ label = 'Lipește linkul pozei' } = {}) {
-    this.#hint = h('span', { class: 'picker__hint' }, '');
-    this.#img = h('img', { alt: '', hidden: true });
-    this.#input = h('input', {
-      type: 'url',
-      inputmode: 'url',
-      class: 'field__input',
-      placeholder: label,
-      oninput: () => this.#preview(),
-    });
-    this.el = h(
-      'div',
-      { class: 'picker picker--single picker--url' },
-      h('div', { class: 'picker__grid' }, h('div', { class: 'picker__item picker__item--url' }, this.#img, this.#hint)),
-      this.#input,
-    );
-  }
-
-  #preview() {
-    const url = this.#input.value.trim();
-    if (!/^https?:\/\//i.test(url)) {
-      this.#img.hidden = true;
-      this.#hint.textContent = '';
-      return;
-    }
-    this.#img.hidden = false;
-    this.#img.src = url;
-    this.#img.onerror = () => {
-      this.#img.hidden = true;
-      this.#hint.textContent = 'Nu am putut încărca poza de la linkul ăsta.';
-    };
-    this.#img.onload = () => {
-      this.#hint.textContent = '';
-    };
-  }
-
-  clear() {
-    this.#input.value = '';
-    this.#img.hidden = true;
-    this.#hint.textContent = '';
   }
 }
 

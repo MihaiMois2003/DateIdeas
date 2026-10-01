@@ -42,3 +42,8 @@ export {
   getDownloadURL,
   deleteObject,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
+
+export {
+  getFunctions,
+  httpsCallable,
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';

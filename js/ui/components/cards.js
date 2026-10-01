@@ -11,10 +11,33 @@ export function categoryHue(category = '') {
 }
 
 /**
+ * Poza unei idei sau fundalul cu model. Pentru locurile din Google (imageSource 'places')
+ * URL-ul se cere la afișare; până vine, rămâne modelul.
+ */
+export function ideaImage(idea, images, { lazy = true } = {}) {
+  const pattern = () => h('span', { class: 'ticket__pattern', 'aria-hidden': 'true' });
+  const image = (src) => h('img', { src, alt: '', loading: lazy ? 'lazy' : null, referrerpolicy: 'no-referrer' });
+
+  if (idea.imageUrl) return image(idea.imageUrl);
+  if (idea.imageSource !== 'places' || !idea.imagePlaceId || !images) return pattern();
+
+  const cached = images.cachedPlacePhoto(idea.imagePlaceId);
+  if (cached) return image(cached);
+
+  const placeholder = pattern();
+  images.placePhoto(idea.imagePlaceId).then((url) => {
+    if (!url) return;
+    const img = h('img', { src: url, alt: '', referrerpolicy: 'no-referrer' });
+    img.addEventListener('load', () => placeholder.replaceWith(img), { once: true });
+  });
+  return placeholder;
+}
+
+/**
  * Biletul unei idei de date: imagine, titlu, cine a propus-o,
  * iar pe cotor categoria și inimile.
  */
-export function ticketCard(idea, { session, onOpen, onLike }) {
+export function ticketCard(idea, { session, images, onOpen, onLike }) {
   const liked = (idea.likes || []).includes(session.uid);
   const likers = (idea.likes || []).map((uid) => session.personOf(uid)).filter(Boolean);
   const done = idea.status === 'done';
@@ -28,7 +51,7 @@ export function ticketCard(idea, { session, onOpen, onLike }) {
       h(
         'div',
         { class: 'ticket__image' },
-        idea.imageUrl ? h('img', { src: idea.imageUrl, alt: '', loading: 'lazy' }) : h('span', { class: 'ticket__pattern', 'aria-hidden': 'true' }),
+        ideaImage(idea, images),
         done && h('span', { class: 'stamp' }, 'Făcut', h('small', {}, formatShort(idea.doneDate))),
       ),
       h(

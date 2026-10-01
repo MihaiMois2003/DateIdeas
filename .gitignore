@@ -1,0 +1,11 @@
+# Dependențe
+node_modules/
+
+# Secretele pentru emulator (cheile API reale nu intră în git)
+functions/.secret.local
+
+# Loguri și fișiere locale ale emulatorului
+*.log
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*

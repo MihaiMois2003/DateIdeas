@@ -26,6 +26,8 @@ import { ChatService } from './services/chat-service.js';
 import { CoupleDataHub } from './services/couple-data-hub.js';
 import { SessionController } from './services/session-controller.js';
 import { NotificationService } from './services/notification-service.js';
+import { LocationService } from './services/location-service.js';
+import { ImageSuggestionService } from './services/image-suggestion-service.js';
 
 import { Toaster } from './ui/components/toaster.js';
 import { AppShell } from './ui/components/app-shell.js';
@@ -62,7 +64,8 @@ function bootstrap() {
   const authService = new AuthService(firebase.auth);
   const profileService = new ProfileService({ userRepository });
   const pairingService = new PairingService({ userRepository, partnerRequestRepository, coupleRepository });
-  const ideaService = new IdeaService({ ideaRepository, entryRepository, mediaService });
+  const imageSuggestionService = new ImageSuggestionService({ functions: firebase.functions, locationService: new LocationService() });
+  const ideaService = new IdeaService({ ideaRepository, entryRepository, mediaService, imageSuggestionService });
   const entryService = new EntryService({ entryRepository, mediaService });
   const chatService = new ChatService({ messageRepository });
   const hub = new CoupleDataHub({ ideaRepository, messageRepository, bus });
@@ -75,7 +78,7 @@ function bootstrap() {
 
   const ctx = {
     bus, session, toaster, hub, sessionController,
-    authService, profileService, pairingService, ideaService, entryService, chatService,
+    authService, profileService, pairingService, ideaService, entryService, chatService, imageSuggestionService,
     coupleRepository, router: null,
   };
 

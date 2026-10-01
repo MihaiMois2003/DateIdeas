@@ -29,6 +29,11 @@ export class IdeaRepository extends BaseRepository {
     return updateDoc(this.#ref(id), { likes: liked ? arrayUnion(uid) : arrayRemove(uid) });
   }
 
+  /** Câmpurile pozei: imageUrl, imagePath, imageSource, imagePlaceId, imageCredit. */
+  setImage(id, imageFields) {
+    return updateDoc(this.#ref(id), imageFields);
+  }
+
   markDone(id, date) {
     return updateDoc(this.#ref(id), { status: 'done', doneDate: Timestamp.fromDate(date) });
   }

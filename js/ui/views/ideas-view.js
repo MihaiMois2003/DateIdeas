@@ -100,6 +100,7 @@ export class IdeasView extends View {
       visible.map((idea) =>
         ticketCard(idea, {
           session,
+          images: this.ctx.imageSuggestionService,
           onOpen: () => this.ctx.router.navigate(`/idea/${idea.id}`),
           onLike: () => ideaService.toggleLike(idea, session.uid).catch((e) => toaster.error(toUserMessage(e))),
         }),

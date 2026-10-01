@@ -4,15 +4,20 @@ export const PRESET_CATEGORIES = Object.freeze([
   'Romantic', 'Aventură', 'Acasă', 'Mâncare', 'În natură', 'Cultură', 'Buget mic', 'Ceva nou',
 ]);
 
+/** Câmpurile pozei unei idei; ideile vechi au doar imageUrl și imagePath. */
+const NO_IMAGE = Object.freeze({ imageUrl: null, imagePath: null, imageSource: null, imagePlaceId: null, imageCredit: null });
+
 export class IdeaService {
   #ideas;
   #entries;
   #media;
+  #images;
 
-  constructor({ ideaRepository, entryRepository, mediaService }) {
+  constructor({ ideaRepository, entryRepository, mediaService, imageSuggestionService }) {
     this.#ideas = ideaRepository;
     this.#entries = entryRepository;
     this.#media = mediaService;
+    this.#images = imageSuggestionService;
   }
 
   /** Categoriile predefinite plus cele create de voi (derivate din ideile existente). */
@@ -22,27 +27,76 @@ export class IdeaService {
     return [...all];
   }
 
-  async create({ title, description, category, file, imageUrl }, context) {
+  /**
+   * `image` e alegerea din formular: { file } din telefon, { suggestion } aleasă de voi,
+   * { suggestion, auto: true } pusă automat, sau null.
+   */
+  async create({ title, description, category, image }, context) {
     const cleanTitle = String(title || '').trim();
     if (!cleanTitle) throw new DomainError('Dă-i ideii un titlu.');
     if (cleanTitle.length > 80) throw new DomainError('Titlul poate avea cel mult 80 de caractere.');
     const cleanCategory = String(category || '').trim().slice(0, 24) || 'Ceva nou';
 
-    const cleanImageUrl = String(imageUrl || '').trim();
-    if (cleanImageUrl && !/^https?:\/\//i.test(cleanImageUrl)) throw new DomainError('Linkul pozei trebuie să fie un link valid.');
+    const imageFields = await this.#imageFields(image, context.coupleId);
+    try {
+      return await this.#ideas.create({
+        coupleId: context.coupleId,
+        members: context.members,
+        authorId: context.uid,
+        title: cleanTitle,
+        description: String(description || '').trim().slice(0, 1000),
+        category: cleanCategory,
+        ...imageFields,
+      });
+    } catch (error) {
+      await this.#media.remove(imageFields.imagePath);
+      throw error;
+    }
+  }
 
-    const image = file ? await this.#media.upload(file, `coupleUploads/${context.coupleId}/ideas`) : null;
+  /** Înlocuiește poza unei idei; poza veche din Storage se șterge doar după ce salvarea a reușit. */
+  async changeImage(idea, image, context) {
+    if (!image) throw new DomainError('Alege o poză din telefon sau din sugestii.');
+    const imageFields = await this.#imageFields(image, context.coupleId);
+    try {
+      await this.#ideas.setImage(idea.id, imageFields);
+    } catch (error) {
+      await this.#media.remove(imageFields.imagePath);
+      throw error;
+    }
+    if (idea.imagePath && idea.imagePath !== imageFields.imagePath) await this.#media.remove(idea.imagePath);
+  }
 
-    return this.#ideas.create({
-      coupleId: context.coupleId,
-      members: context.members,
-      authorId: context.uid,
-      title: cleanTitle,
-      description: String(description || '').trim().slice(0, 1000),
-      category: cleanCategory,
-      imageUrl: image?.url ?? (cleanImageUrl || null),
-      imagePath: image?.path ?? null,
-    });
+  async #imageFields(image, coupleId) {
+    if (image?.file) {
+      const uploaded = await this.#media.upload(image.file, `coupleUploads/${coupleId}/ideas`);
+      return { ...NO_IMAGE, imageUrl: uploaded.url, imagePath: uploaded.path, imageSource: 'upload' };
+    }
+
+    const suggestion = image?.suggestion;
+    if (suggestion?.source === 'places') {
+      // Termenii Google nu permit stocarea pozei: păstrăm doar locul și creditul.
+      return { ...NO_IMAGE, imageSource: 'places', imagePlaceId: suggestion.id, imageCredit: IdeaService.#credit(suggestion.credit) };
+    }
+    if (suggestion?.source === 'pixabay') {
+      try {
+        const imported = await this.#images.importPixabay(suggestion.id, coupleId);
+        return { ...NO_IMAGE, imageUrl: imported.url, imagePath: imported.path, imageSource: 'pixabay', imageCredit: IdeaService.#credit(imported.credit) };
+      } catch (error) {
+        // O poză pusă automat nu merită să blocheze ideea: rămâne fundalul cu model.
+        if (image.auto) {
+          console.warn('[ideas] import automat eșuat', error);
+          return NO_IMAGE;
+        }
+        throw error;
+      }
+    }
+    return NO_IMAGE;
+  }
+
+  static #credit(credit) {
+    if (!credit?.name) return null;
+    return { name: String(credit.name).slice(0, 120), url: /^https:\/\//i.test(credit.url || '') ? credit.url : null };
   }
 
   toggleLike(idea, uid) {

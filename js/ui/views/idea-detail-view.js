@@ -2,7 +2,8 @@ import { View } from './view.js';
 import { h, replace, withBusy } from '../dom.js';
 import { icon } from '../icons.js';
 import { avatar, emptyState, spinner, PhotoPicker } from '../components/bits.js';
-import { polaroid, categoryHue } from '../components/cards.js';
+import { polaroid, categoryHue, ideaImage } from '../components/cards.js';
+import { ImageChoiceField, creditLine } from '../components/image-suggestions.js';
 import { Sheet, openLightbox, confirmAction } from '../components/sheet.js';
 import { toUserMessage } from '../../core/errors.js';
 import { formatLong, formatShort, toInputDate, fromInputDate } from '../format.js';
@@ -83,14 +84,7 @@ export class IdeaDetailView extends View {
       h(
         'div',
         { class: `detail__ticket ticket--${categoryHue(idea.category)}` },
-        h(
-          'div',
-          { class: 'detail__image' },
-          idea.imageUrl
-            ? h('button', { class: 'detail__image-button', type: 'button', 'aria-label': 'Mărește poza', onclick: () => openLightbox(idea.imageUrl, idea.title) }, h('img', { src: idea.imageUrl, alt: '' }))
-            : h('span', { class: 'ticket__pattern', 'aria-hidden': 'true' }),
-          done && h('span', { class: 'stamp stamp--large' }, 'Făcut', h('small', {}, formatShort(idea.doneDate))),
-        ),
+        this.#image(idea),
         h(
           'div',
           { class: 'detail__text' },
@@ -103,6 +97,61 @@ export class IdeaDetailView extends View {
       ),
       h('div', { class: 'detail__actions' }, doneButton, likeButton, deleteButton),
     );
+  }
+
+  #image(idea) {
+    const hasImage = Boolean(idea.imageUrl || idea.imagePlaceId);
+    // Pentru locuri, URL-ul vine abia după afișare; lightbox-ul ia ce e în <img> la momentul atingerii.
+    const zoom = (event) => {
+      const src = event.currentTarget.querySelector('img')?.src;
+      if (src) openLightbox(src, idea.title);
+    };
+    return h(
+      'div',
+      { class: 'detail__image' },
+      hasImage
+        ? h('button', { class: 'detail__image-button', type: 'button', 'aria-label': 'Mărește poza', onclick: zoom }, ideaImage(idea, this.ctx.imageSuggestionService, { lazy: false }))
+        : h('span', { class: 'ticket__pattern', 'aria-hidden': 'true' }),
+      idea.status === 'done' && h('span', { class: 'stamp stamp--large' }, 'Făcut', h('small', {}, formatShort(idea.doneDate))),
+      h(
+        'button',
+        { class: 'detail__change', type: 'button', onclick: () => this.#openImageSheet() },
+        icon('image', { size: 18 }),
+        hasImage ? 'Schimbă poza' : 'Pune o poză',
+      ),
+      creditLine(idea.imageCredit, idea.imageSource, { className: 'detail__credit' }),
+    );
+  }
+
+  #openImageSheet() {
+    const { ideaService, imageSuggestionService, session, toaster } = this.ctx;
+    const idea = this.#idea;
+    if (!idea) return;
+    const imageChoice = new ImageChoiceField({ service: imageSuggestionService, query: idea.title });
+    const save = h('button', { class: 'button button--primary button--wide', type: 'submit' }, 'Pune poza');
+
+    const form = h(
+      'form',
+      {
+        class: 'stack',
+        onsubmit: (event) => {
+          event.preventDefault();
+          withBusy(save, async () => {
+            try {
+              // Ideea curentă din hub: poate s-a schimbat între timp (ex. partenerul a pus altă poză).
+              await ideaService.changeImage(this.#idea ?? idea, await imageChoice.choice(), session.coupleContext);
+              sheet.close();
+              toaster.show('Gata, poza e schimbată.', { tone: 'rose' });
+            } catch (error) {
+              toaster.error(toUserMessage(error));
+            }
+          });
+        },
+      },
+      imageChoice.el,
+      save,
+    );
+    const sheet = Sheet.open({ title: 'Schimbă poza', content: form, onClose: () => imageChoice.dispose() });
   }
 
   #paintMemories() {

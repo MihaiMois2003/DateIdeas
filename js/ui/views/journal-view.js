@@ -75,11 +75,22 @@ export class JournalView extends View {
     );
   }
 
+  /** Poza ideii ca a doua variantă de copertă; pentru locuri, redesenăm când vine URL-ul. */
+  #ideaCover(idea) {
+    if (idea.imageUrl) return { url: idea.imageUrl };
+    if (idea.imageSource !== 'places' || !idea.imagePlaceId) return null;
+    const images = this.ctx.imageSuggestionService;
+    const url = images.cachedPlacePhoto(idea.imagePlaceId);
+    if (url) return { url };
+    images.placePhoto(idea.imagePlaceId).then((resolved) => resolved && this.#draw(this.#done));
+    return null;
+  }
+
   #page(idea) {
     const { session, router } = this.ctx;
     const entries = this.#entries.get(idea.id);
     const photos = (entries || []).flatMap((e) => e.photos || []);
-    const cover = photos[0] || (idea.imageUrl ? { url: idea.imageUrl } : null);
+    const cover = photos[0] || this.#ideaCover(idea);
     const date = toDate(idea.doneDate);
 
     const notes = [session.me, session.partner]

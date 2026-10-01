@@ -36,7 +36,7 @@ export class Sheet {
     document.addEventListener('keydown', this.#keyHandler);
     if (openCount++ === 0) document.documentElement.classList.add('is-locked');
     requestAnimationFrame(() => this.#overlay.classList.add('is-open'));
-    setTimeout(() => panel.querySelector('input:not([type=file]), textarea')?.focus({ preventScroll: true }), 320);
+    setTimeout(() => panel.querySelector('input:not([type=file]):not([data-no-autofocus]), textarea')?.focus({ preventScroll: true }), 320);
   }
 
   close() {

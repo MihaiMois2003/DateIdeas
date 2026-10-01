@@ -1,4 +1,7 @@
-import { initializeApp, getAuth, getFirestore, getStorage } from './sdk.js';
+import { initializeApp, getAuth, getFirestore, getStorage, getFunctions } from './sdk.js';
+
+/** Regiunea în care rulează Cloud Functions (aceeași ca în functions/index.js). */
+const FUNCTIONS_REGION = 'europe-west1';
 
 /**
  * Creează instanțele Firebase o singură dată.
@@ -11,5 +14,6 @@ export function createFirebase(config) {
     auth: getAuth(app),
     db: getFirestore(app),
     storage: getStorage(app),
+    functions: getFunctions(app, FUNCTIONS_REGION),
   };
 }

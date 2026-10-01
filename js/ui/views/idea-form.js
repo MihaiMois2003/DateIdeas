@@ -1,46 +1,27 @@
 import { h, replace, withBusy } from '../dom.js';
 import { icon } from '../icons.js';
 import { Sheet } from '../components/sheet.js';
-import { PhotoPicker, ImageUrlField } from '../components/bits.js';
+import { ImageChoiceField } from '../components/image-suggestions.js';
 import { toUserMessage } from '../../core/errors.js';
+
+/** Cât așteptăm sugestiile la salvare, dacă n-ai ales nicio poză. */
+const AUTO_IMAGE_WAIT_MS = 6000;
 
 /** Deschide formularul „Idee nouă”. */
 export function openIdeaForm(ctx) {
-  const { ideaService, hub, session, toaster } = ctx;
+  const { ideaService, imageSuggestionService, hub, session, toaster } = ctx;
   let category = 'Romantic';
-  let imageSource = 'upload';
 
-  const title = h('input', { class: 'field__input', name: 'title', maxlength: 80, placeholder: 'ex. Cafea și vinil în Cluj', required: true });
+  const imageChoice = new ImageChoiceField({ service: imageSuggestionService, autoFirst: true });
+  const title = h('input', {
+    class: 'field__input',
+    name: 'title',
+    maxlength: 80,
+    placeholder: 'ex. Cafea și vinil în Cluj',
+    required: true,
+    oninput: () => imageChoice.setTitle(title.value),
+  });
   const description = h('textarea', { class: 'field__input field__input--area', name: 'description', rows: 3, maxlength: 1000, placeholder: 'Unde, când, ce ne trebuie…' });
-  const picker = new PhotoPicker({ label: 'Poză de inspirație' });
-  const urlField = new ImageUrlField({ label: 'Lipește linkul pozei (ex. din Google Images)' });
-  const sourceTabs = h('div', { class: 'picker-source', role: 'radiogroup', 'aria-label': 'De unde iei poza' });
-  const imageSlot = h('div', {});
-
-  const renderImageSlot = () => replace(imageSlot, imageSource === 'upload' ? picker.el : urlField.el);
-  const renderSourceTabs = () => {
-    replace(
-      sourceTabs,
-      [
-        { key: 'upload', label: 'Din galerie' },
-        { key: 'link', label: 'Link de pe internet' },
-      ].map(({ key, label }) =>
-        h('button', {
-          class: `chip ${imageSource === key ? 'is-active' : ''}`,
-          type: 'button',
-          role: 'radio',
-          'aria-checked': String(imageSource === key),
-          onclick: () => {
-            imageSource = key;
-            renderSourceTabs();
-            renderImageSlot();
-          },
-        }, label),
-      ),
-    );
-  };
-  renderSourceTabs();
-  renderImageSlot();
 
   const chips = h('div', { class: 'chips chips--wrap', role: 'radiogroup', 'aria-label': 'Categorie' });
   const custom = h('input', { class: 'field__input field__input--small', maxlength: 24, placeholder: 'Categorie nouă', 'aria-label': 'Categorie nouă' });
@@ -91,8 +72,7 @@ export function openIdeaForm(ctx) {
                 title: title.value,
                 description: description.value,
                 category,
-                file: imageSource === 'upload' ? picker.files[0] : null,
-                imageUrl: imageSource === 'link' ? urlField.value : null,
+                image: await imageChoice.choice({ timeoutMs: AUTO_IMAGE_WAIT_MS }),
               },
               session.coupleContext,
             );
@@ -107,10 +87,10 @@ export function openIdeaForm(ctx) {
     h('label', { class: 'field' }, h('span', { class: 'field__label' }, 'Ce facem?'), title),
     h('label', { class: 'field' }, h('span', { class: 'field__label' }, 'Detalii'), description),
     h('div', { class: 'field' }, h('span', { class: 'field__label' }, 'Categorie'), chips, h('div', { class: 'inline-add' }, custom, h('button', { class: 'icon-button icon-button--soft', type: 'button', 'aria-label': 'Adaugă categoria', onclick: addCustom }, icon('plus')))),
-    h('div', { class: 'field' }, h('span', { class: 'field__label' }, 'Inspirație'), sourceTabs, imageSlot),
+    h('div', { class: 'field' }, h('span', { class: 'field__label' }, 'Inspirație'), imageChoice.el),
     save,
   );
 
-  const sheet = Sheet.open({ title: 'Idee nouă', content: form, onClose: () => picker.dispose() });
+  const sheet = Sheet.open({ title: 'Idee nouă', content: form, onClose: () => imageChoice.dispose() });
   return sheet;
 }
