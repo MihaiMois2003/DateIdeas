@@ -90,6 +90,62 @@ export class PhotoPicker {
   }
 }
 
+/**
+ * Câmp pentru o poză luată de pe internet (link, ex. din Google Images).
+ * Expune `value` (linkul curent, validat) și `el` (elementul DOM).
+ */
+export class ImageUrlField {
+  #img;
+  #input;
+  #hint;
+
+  get value() {
+    return this.#img.hidden ? '' : this.#input.value.trim();
+  }
+
+  constructor({ label = 'Lipește linkul pozei' } = {}) {
+    this.#hint = h('span', { class: 'picker__hint' }, '');
+    this.#img = h('img', { alt: '', hidden: true });
+    this.#input = h('input', {
+      type: 'url',
+      inputmode: 'url',
+      class: 'field__input',
+      placeholder: label,
+      oninput: () => this.#preview(),
+    });
+    this.el = h(
+      'div',
+      { class: 'picker picker--single picker--url' },
+      h('div', { class: 'picker__grid' }, h('div', { class: 'picker__item picker__item--url' }, this.#img, this.#hint)),
+      this.#input,
+    );
+  }
+
+  #preview() {
+    const url = this.#input.value.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      this.#img.hidden = true;
+      this.#hint.textContent = '';
+      return;
+    }
+    this.#img.hidden = false;
+    this.#img.src = url;
+    this.#img.onerror = () => {
+      this.#img.hidden = true;
+      this.#hint.textContent = 'Nu am putut încărca poza de la linkul ăsta.';
+    };
+    this.#img.onload = () => {
+      this.#hint.textContent = '';
+    };
+  }
+
+  clear() {
+    this.#input.value = '';
+    this.#img.hidden = true;
+    this.#hint.textContent = '';
+  }
+}
+
 export function emptyState({ title, text, action }) {
   return h('div', { class: 'empty' }, h('p', { class: 'empty__title' }, title), text && h('p', { class: 'empty__text' }, text), action);
 }

@@ -520,6 +520,18 @@ html.is-paired .chat-root { display: block; }
 .picker--single:not(.has-files) .picker__add { width: 100%; height: 104px; font-size: 0.9rem; }
 .picker.is-full .picker__add { display: none; }
 
+.picker--url { flex-direction: column; }
+.picker--url .picker__grid { display: block; }
+.picker__item--url {
+  width: 100%; height: auto; aspect-ratio: 4 / 3;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--card); border: 1.5px dashed var(--line-strong);
+}
+.picker__item--url img[hidden] { display: none; }
+.picker__hint { font-size: 0.78rem; color: var(--berry-deep); text-align: center; padding: 0 10px; }
+
+.picker-source { display: flex; gap: 6px; margin-bottom: 8px; }
+
 /* Sheet */
 .overlay {
   position: fixed; inset: 0; z-index: 80;

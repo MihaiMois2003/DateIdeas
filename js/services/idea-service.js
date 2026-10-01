@@ -22,11 +22,14 @@ export class IdeaService {
     return [...all];
   }
 
-  async create({ title, description, category, file }, context) {
+  async create({ title, description, category, file, imageUrl }, context) {
     const cleanTitle = String(title || '').trim();
     if (!cleanTitle) throw new DomainError('Dă-i ideii un titlu.');
     if (cleanTitle.length > 80) throw new DomainError('Titlul poate avea cel mult 80 de caractere.');
     const cleanCategory = String(category || '').trim().slice(0, 24) || 'Ceva nou';
+
+    const cleanImageUrl = String(imageUrl || '').trim();
+    if (cleanImageUrl && !/^https?:\/\//i.test(cleanImageUrl)) throw new DomainError('Linkul pozei trebuie să fie un link valid.');
 
     const image = file ? await this.#media.upload(file, `coupleUploads/${context.coupleId}/ideas`) : null;
 
@@ -37,7 +40,7 @@ export class IdeaService {
       title: cleanTitle,
       description: String(description || '').trim().slice(0, 1000),
       category: cleanCategory,
-      imageUrl: image?.url ?? null,
+      imageUrl: image?.url ?? (cleanImageUrl || null),
       imagePath: image?.path ?? null,
     });
   }
