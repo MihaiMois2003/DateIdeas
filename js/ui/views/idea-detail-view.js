@@ -73,7 +73,7 @@ export class IdeaDetailView extends View {
     );
 
     const doneButton = done
-      ? h('button', { class: 'button button--ghost', type: 'button', onclick: (e) => withBusy(e.currentTarget, () => ideaService.reopen(idea).catch((err) => toaster.error(toUserMessage(err)))) }, icon('undo', { size: 20 }), 'Mută înapoi în idei')
+      ? h('button', { class: 'button button--ghost', type: 'button', onclick: (e) => this.#reopen(idea, e.currentTarget) }, icon('undo', { size: 20 }), 'Mută înapoi în idei')
       : h('button', { class: 'button button--primary', type: 'button', onclick: () => this.#openDoneSheet(idea) }, icon('check', { size: 20 }), 'Am făcut-o');
 
     const deleteButton = h('button', { class: 'icon-button icon-button--soft', type: 'button', 'aria-label': 'Șterge ideea', onclick: () => this.#delete(idea) }, icon('trash', { size: 20 }));
@@ -258,6 +258,18 @@ export class IdeaDetailView extends View {
       save,
     );
     const sheet = Sheet.open({ title: 'Amintirea ta', content: form, onClose: () => picker.dispose() });
+  }
+
+  async #reopen(idea, button) {
+    const ok = await confirmAction({
+      title: 'Muți biletul înapoi în idei?',
+      message: `„${idea.title}” iese din jurnal și redevine o idee de făcut. Amintirile voastre rămân.`,
+      confirmLabel: 'Mută înapoi',
+      tone: 'primary',
+    });
+    if (!ok) return;
+    const { ideaService, toaster } = this.ctx;
+    withBusy(button, () => ideaService.reopen(idea).catch((error) => toaster.error(toUserMessage(error))));
   }
 
   async #deleteEntry(entry) {
