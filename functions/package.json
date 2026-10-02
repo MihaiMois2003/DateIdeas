@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "main": "index.js",
-  "engines": { "node": "20" },
+  "engines": { "node": "22" },
   "scripts": {
     "check": "node check-syntax.js",
     "serve": "firebase emulators:start --only functions,auth,firestore,storage",
